@@ -19,6 +19,13 @@ description: Use at the start of any non-trivial task in this repo - propose app
 Answer fully — explain, analyze, reason through it. Do not write or modify any files. If implementation follows naturally, wait for the user to explicitly request it.
 
 **When the user asks for implementation** (e.g. "Add...", "Fix...", "Refactor..."):
-Follow the workflow above: propose first, explain trade-offs, wait for confirmation, then implement.
+Follow the workflow above: propose first, explain trade-offs, wait for confirmation, then implement — unless **apply without asking** applies (below).
 
-**CRITICAL: Never edit files in the same response as a proposal or answer.** Answering/proposing and implementing must always be separate responses.
+**Apply without asking** — skip the separate proposal turn and implement in the same response when the user clearly opts out of confirmation, for example:
+
+- Says **apply without asking**, **just do it**, **don't wait for confirmation**, or **skip propose** (for this task or this message)
+- Gives a direct imperative **and** explicitly ties it to immediate apply (e.g. "make X — apply without asking")
+
+Still require explicit user request before **git commit**, **git push**, or **opening a PR** unless they ask for those in the same message.
+
+**CRITICAL: Never edit files in the same response as a proposal or answer** — except when the user has invoked **apply without asking** for that work. Answering/proposing and implementing must otherwise be separate responses.

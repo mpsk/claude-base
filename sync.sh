@@ -5,17 +5,23 @@
 # Safe to rerun: only creates missing links, never touches an existing real file/dir (override wins).
 #
 # Usage:
-#   ./sync.sh git-exclude=<true|false>
-#     true  - create missing symlinks, then also add each base skill/agent
-#             path to every repo's .git/info/exclude (workspace root skipped)
-#     false - create missing symlinks only, skip git-exclude
+#   ./sync.sh [git-exclude=<true|false>]
+#     default true - create missing symlinks, then also add each base skill/agent
+#                    path to every repo's .git/info/exclude (workspace root skipped)
+#     false        - create missing symlinks only, skip git-exclude
 set -euo pipefail
 
-if [ $# -ne 1 ] || [[ "$1" != git-exclude=true && "$1" != git-exclude=false ]]; then
-  echo "usage: $0 git-exclude=<true|false>" >&2
+GIT_EXCLUDE=true
+if [ $# -eq 1 ]; then
+  if [[ "$1" != git-exclude=true && "$1" != git-exclude=false ]]; then
+    echo "usage: $0 [git-exclude=<true|false>]" >&2
+    exit 1
+  fi
+  GIT_EXCLUDE="${1#git-exclude=}"
+elif [ $# -gt 1 ]; then
+  echo "usage: $0 [git-exclude=<true|false>]" >&2
   exit 1
 fi
-GIT_EXCLUDE="${1#git-exclude=}"
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TITAN_ROOT="$(dirname "$BASE_DIR")"
