@@ -72,6 +72,8 @@ Before selecting workers, classify the task. Machinery must match task size — 
 
 Plan files in `.claude/plans/` are a Complex-tier artifact only.
 
+**Plan Mode:** when Plan Mode is active, follow the `plan-mode` skill instead of spawning `task-planner`. After the plan is approved, resume this pipeline at `feature-implementer`.
+
 ---
 
 ## Core Rule

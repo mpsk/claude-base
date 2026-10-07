@@ -41,6 +41,10 @@ printf '999\n2\n' | bash "$fixture/work space/.claude-base/sync.sh" codex --inte
 [ -f "$repo/.codex/agents/researcher.toml" ]
 [ ! -e "$fixture/work space/.codex" ]
 rm -rf "$repo/.codex/agents" "$repo/.agents"
+printf '0\n' | bash "$fixture/work space/.claude-base/sync.sh" codex --interactive
+[ -f "$repo/.codex/agents/researcher.toml" ]
+[ -f "$fixture/work space/.codex/agents/researcher.toml" ]
+rm -rf "$repo/.codex/agents" "$repo/.agents" "$fixture/work space/.codex" "$fixture/work space/.agents"
 LC_ALL=C bash "$converter" --target "$fixture/locale-c"
 LC_ALL=en_US.UTF-8 bash "$converter" --target "$fixture/locale-utf8"
 diff -r "$fixture/locale-c" "$fixture/locale-utf8"

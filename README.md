@@ -44,9 +44,10 @@ From `.claude-base`:
 
 From the workspace root, use `.claude-base/sync.sh` with the same arguments.
 
-Interactive runs list eligible destinations and let you choose `all`, a numbered
-selection such as `1,3`, or `cancel`. The workspace root is listed as `.`. The menu
-shows which configuration folders will be created. Selection applies to file
+Interactive runs list eligible destinations and let you choose `0` (all), a numbered
+selection such as `1,3`, or `cancel`; `all` also still works. The workspace root is listed
+as `.`. The menu shows which configuration folders will be created and, for the `claude`
+target, which child repos will get `plansDirectory` set. Selection applies to file
 generation, Git excludes, and cleanup for both targets.
 
 Use `--all` or repeatable `--target NAME` for noninteractive runs. `--target .`
@@ -56,12 +57,18 @@ targets were supplied. Use `--interactive` to read menu input from a pipe.
 
 | Target | Destinations | Output |
 | --- | --- | --- |
-| `claude` (default) | Immediate child Git repos and the workspace root | `.claude/{agents,skills,commands}` symlinks |
+| `claude` (default) | Immediate child Git repos and the workspace root | `.claude/{agents,skills,commands}` symlinks; in child repos also `plansDirectory` in `.claude/settings.local.json` |
 | `codex` | Immediate child Git repos, the workspace root, and non-Git child folders already containing `.codex/` | TOML agents and converted skills |
 
 `sync.sh codex` creates `.codex/agents/` and `.agents/skills/` automatically in
 the workspace root and immediate child Git repositories. Non-Git child folders
 are selected only if they already contain `.codex/`. Other folders are skipped.
+
+Claude sync also sets `plansDirectory` to `<repo>/.claude/plans` (absolute path) in each
+child repo's `.claude/settings.local.json`, so Plan Mode writes plans into the repo instead of
+`~/.claude/plans/`. Existing keys are kept, an existing `plansDirectory` is preserved, and the
+file is added to the local Git exclude. The step needs `jq` and is skipped without it. The
+workspace root is skipped: plans made there are copied to the target repo by `plan-mode`.
 
 Existing Claude symlinks expose source edits immediately. Rerun Claude sync to
 install new names or clean up deletions and renames. Codex files are generated
@@ -83,6 +90,7 @@ invoke it as `/<name>`. In Codex, use `$<name>`.
 | --- | --- | --- |
 | `agent-mode-instructions` | Propose 1–3 options with trade-offs, wait for a decision, then implement. Questions get answers only, no file edits. Has an explicit “apply without asking” exception. | Start of any non-trivial task. |
 | `superpower` | Triages a task as trivial, small, or complex and routes it through the worker agents below, with a visible routing step and compliance footer. | Start of any non-trivial task, before planning or coding. |
+| `plan-mode` | Plan Mode workflow: the main thread plans instead of `task-planner`, optional `researcher` for unfamiliar libraries/APIs, shared plan template, then hand-off to `superpower` at `feature-implementer`. Holds `plan-template.md`, which `task-planner` also uses. | Plan Mode is active. |
 | `pr-line-stats` | Counts changed lines in a PR or the current branch, grouped as lockfiles, generated, `*.md`, tests, and other. Applies the repo's `pr-size.yml` exclude regex and reports an `ok` / `WARN` / `FAIL` verdict. | PR size questions, tests vs code share, or whether a branch needs splitting. |
 
 `pr-line-stats` runs a bundled script from inside the target repo:

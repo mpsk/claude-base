@@ -60,3 +60,23 @@ for kind in skills agents commands; do
     fi
   done
 done
+# Point Plan Mode at the repo's own plans folder via the personal (uncommitted)
+# settings file. Child repos only; an existing plansDirectory is preserved.
+if [ "$TARGET_DIR" != "$(dirname "$SOURCE_DIR")" ]; then
+  settings="$TARGET_DIR/.claude/settings.local.json"
+  plans_dir="$TARGET_DIR/.claude/plans"
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "skipped plansDirectory (jq not found): $settings"
+  elif [ -f "$settings" ] && jq -e 'has("plansDirectory")' "$settings" >/dev/null; then
+    echo "preserved plansDirectory: $settings"
+  elif $DRY_RUN; then
+    echo "would set plansDirectory: $settings -> $plans_dir"
+  else
+    mkdir -p "$(dirname "$settings")"
+    [ -f "$settings" ] || printf '{}\n' > "$settings"
+    jq --arg dir "$plans_dir" '.plansDirectory = $dir' "$settings" > "$settings.tmp"
+    mv "$settings.tmp" "$settings"
+    echo "set plansDirectory: $settings -> $plans_dir"
+  fi
+  if $GIT_EXCLUDE; then add_git_exclude "$TARGET_DIR" ".claude/settings.local.json" "$DRY_RUN"; fi
+fi

@@ -42,23 +42,34 @@ select_destinations() {
       exit 1
     fi
     echo "Available destinations for ${TARGETS[*]}:"
+    echo '  0. All'
     for ((i=0; i<${#DESTINATIONS[@]}; i++)); do
       destination="${DESTINATIONS[$i]}"
       label="$(basename "$destination")"
       [ "$destination" != "$WORKSPACE_ROOT" ] || label='workspace root (.)'
       creates=''
+      sets=''
       if wants_target codex; then
         [ -d "$destination/.codex" ] || creates="$creates .codex"
         [ -d "$destination/.agents" ] || creates="$creates .agents"
       fi
       if wants_target claude && { [ "$destination" = "$WORKSPACE_ROOT" ] || [ -e "$destination/.git" ]; }; then
         [ -d "$destination/.claude" ] || creates="$creates .claude"
+        # Mirrors the plansDirectory step in sync-claude.sh: child repos only, needs jq.
+        settings="$destination/.claude/settings.local.json"
+        if [ "$destination" != "$WORKSPACE_ROOT" ] && command -v jq >/dev/null 2>&1 &&
+          ! { [ -f "$settings" ] && jq -e 'has("plansDirectory")' "$settings" >/dev/null 2>&1; }; then
+          sets=' plansDirectory'
+        fi
       fi
-      [ -z "$creates" ] || creates=" (creates:$creates)"
-      printf '  %d. %s%s\n' "$((i+1))" "$label" "$creates"
+      notes=''
+      [ -z "$creates" ] || notes="creates:$creates"
+      [ -z "$sets" ] || notes="${notes:+$notes; }sets:$sets"
+      [ -z "$notes" ] || notes=" ($notes)"
+      printf '  %d. %s%s\n' "$((i+1))" "$label" "$notes"
     done
     while :; do
-      printf 'Choose all, numbers separated by commas/spaces, or cancel: '
+      printf 'Choose 0 for all, numbers separated by commas/spaces, or cancel: '
       if ! IFS= read -r choice; then echo 'Cancelled.'; exit 0; fi
       case "$choice" in
         all|a) SELECTED=("${DESTINATIONS[@]}"); break ;;
@@ -66,15 +77,18 @@ select_destinations() {
       esac
       SELECTED=()
       valid=true
+      all=false
       IFS=' ' read -r -a choice_tokens <<< "${choice//,/ }"
       for token in "${choice_tokens[@]}"; do
         case "$token" in *[!0-9]*|'') valid=false; break ;; esac
         # Bound length before arithmetic and treat leading zeroes as decimal.
         if [ ${#token} -gt 6 ]; then valid=false; break; fi
         number=$((10#$token))
-        if [ "$number" -lt 1 ] || [ "$number" -gt ${#DESTINATIONS[@]} ]; then valid=false; break; fi
+        if [ "$number" -eq 0 ]; then all=true; continue; fi
+        if [ "$number" -gt ${#DESTINATIONS[@]} ]; then valid=false; break; fi
         SELECTED+=("${DESTINATIONS[$((number-1))]}")
       done
+      if $valid && $all; then SELECTED=("${DESTINATIONS[@]}"); break; fi
       if $valid && [ ${#SELECTED[@]} -gt 0 ]; then break; fi
       echo 'Invalid selection; use numbers from the list.'
     done
