@@ -74,10 +74,49 @@ removed when a definition is deleted.
 
 ## Available definitions
 
-- `agent-mode-instructions`: propose and confirm before implementation, with an explicit “apply without asking” exception.
-- `superpower`: route work through specialist agents according to task size.
-- `task-planner`, `feature-implementer`, `researcher`, `docs-updater`: specialist agents for planning, implementation, research, and documentation.
-- `pr-comments`: fetch PR and review comments, then work through actionable comments. It does not resolve GitHub review threads.
+### Skills
+
+`skills/<name>/SKILL.md`. Claude selects a skill from its description, or you
+invoke it as `/<name>`. In Codex, use `$<name>`.
+
+| Skill | What it does | When to use |
+| --- | --- | --- |
+| `agent-mode-instructions` | Propose 1–3 options with trade-offs, wait for a decision, then implement. Questions get answers only, no file edits. Has an explicit “apply without asking” exception. | Start of any non-trivial task. |
+| `superpower` | Triages a task as trivial, small, or complex and routes it through the worker agents below, with a visible routing step and compliance footer. | Start of any non-trivial task, before planning or coding. |
+| `pr-line-stats` | Counts changed lines in a PR or the current branch, grouped as lockfiles, generated, `*.md`, tests, and other. Applies the repo's `pr-size.yml` exclude regex and reports an `ok` / `WARN` / `FAIL` verdict. | PR size questions, tests vs code share, or whether a branch needs splitting. |
+
+`pr-line-stats` runs a bundled script from inside the target repo:
+
+```bash
+bash <workspace>/.claude-base/skills/pr-line-stats/scripts/pr_line_stats.sh [PR_NUMBER] [--base <ref>] [--list]
+```
+
+Without a PR it falls back to `git diff <base>...HEAD`; `--base` defaults to
+`origin/staging`, else `origin/main`. `--list` prints per-file counts. It needs
+`gh` authenticated through the keyring (`gh auth login`).
+
+### Agents
+
+`agents/<name>.agent.md`. Spawned as subagents, usually by `superpower`.
+
+| Agent | Role | When to use | Model | Tools |
+| --- | --- | --- | --- | --- |
+| `researcher` | Investigates external APIs, libraries, and framework behavior. Produces guidance and option comparisons, not production code. | Before planning, when a library, API, or integration approach is unfamiliar. | `opus` | Read, Grep, Glob, WebFetch, WebSearch, Bash |
+| `task-planner` | Turns a task into a minimal plan with scoped steps, risks, and a test strategy. Writes plan files to `.claude/plans/`. | Beginning of any non-trivial implementation. | `opus` | Read, Grep, Glob, Bash, Edit, Write, WebFetch, WebSearch |
+| `feature-implementer` | Implements one plan step with a minimal, reviewable diff that follows project conventions. No unrelated cleanup. | After `task-planner` produces a plan. | `sonnet` | Read, Edit, Write, Grep, Glob, Bash, WebFetch, WebSearch |
+| `docs-updater` | Updates developer docs, README notes, migration guidance, and changelogs to match code changes, without inventing behavior. | After changes that affect `docs/`, co-located `.md` files, or `CLAUDE.md`. | `haiku` | Read, Edit, Write, Grep, Glob, Bash |
+
+Claude does not honor the frontmatter `model:` pin for `.agent.md` files. Pass
+`model` explicitly on the Agent call. Codex model mapping is described under
+[Codex conversion](#codex-conversion).
+
+### Commands
+
+`commands/<name>.md`. Invoke as `/<name>` in Claude, or `$<name>` in Codex.
+
+| Command | What it does |
+| --- | --- |
+| `pr-comments` | Fetches PR-level and review comments for the current branch's PR, then works through actionable comments one by one. It does not resolve GitHub review threads. Uses `gh` with keyring credentials. |
 
 ## Codex conversion
 
