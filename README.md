@@ -13,8 +13,12 @@ workspace containing this repository. Pull its updates on each laptop, then run
     skills/<name>/SKILL.md       # shared skills and optional resources
     commands/<name>.md           # Claude command workflows
     sync.sh                     # selects targets and syncs settings
-    claude-to-codex.sh           # standalone Codex converter
-    claude-to-codex.awk          # metadata and instruction conversion
+    lib/
+      destinations.sh           # discovery and interactive selection
+      git-exclude.sh            # shared Git exclude function
+      sync-claude.sh            # Claude links and cleanup for one destination
+      claude-to-codex.sh         # Codex conversion for one destination
+      claude-to-codex.awk        # metadata and instruction conversion
     tests/claude-to-codex.sh     # conversion and sync regression tests
   <project>/
 ```
@@ -33,18 +37,31 @@ From `.claude-base`:
 ./sync.sh claude codex          # both
 ./sync.sh claude codex --dry-run # preview without destination changes
 ./sync.sh codex git-exclude=false
+./sync.sh codex --all           # all eligible destinations, no prompt
+./sync.sh codex --target my-project
+./sync.sh claude codex --target . --target my-project
 ```
 
 From the workspace root, use `.claude-base/sync.sh` with the same arguments.
 
+Interactive runs list eligible destinations and let you choose `all`, a numbered
+selection such as `1,3`, or `cancel`. The workspace root is listed as `.`. The menu
+shows which configuration folders will be created. Selection applies to file
+generation, Git excludes, and cleanup for both targets.
+
+Use `--all` or repeatable `--target NAME` for noninteractive runs. `--target .`
+selects the workspace root. Unknown targets fail before destination changes.
+`--dry-run` previews all eligible destinations without prompting unless specific
+targets were supplied. Use `--interactive` to read menu input from a pipe.
+
 | Target | Destinations | Output |
 | --- | --- | --- |
 | `claude` (default) | Immediate child Git repos and the workspace root | `.claude/{agents,skills,commands}` symlinks |
-| `codex` | Immediate child folders and the workspace root that already contain `.codex/` | TOML agents and converted skills |
+| `codex` | Immediate child Git repos, the workspace root, and non-Git child folders already containing `.codex/` | TOML agents and converted skills |
 
-For a new Codex project, create `<project>/.codex/` before running `sync.sh codex`.
-Non-Git Codex folders are supported. The sync command does not create `.codex/`
-in unselected folders.
+`sync.sh codex` creates `.codex/agents/` and `.agents/skills/` automatically in
+the workspace root and immediate child Git repositories. Non-Git child folders
+are selected only if they already contain `.codex/`. Other folders are skipped.
 
 Existing Claude symlinks expose source edits immediately. Rerun Claude sync to
 install new names or clean up deletions and renames. Codex files are generated
@@ -104,16 +121,20 @@ CODEX_MODEL_HAIKU=gpt-6-luna CODEX_REASONING_EFFORT=high \
 `CODEX_REASONING_EFFORT` applies only to explicitly mapped models. Model
 availability and supported reasoning levels must match your account and client.
 
-The helper can convert into one target directly, even without an existing `.codex/`:
+The helpers can sync one target directly. Codex needs no existing `.codex/`:
 
 ```bash
-./claude-to-codex.sh --target ../my-project --dry-run
-./claude-to-codex.sh --target ../my-project --git-exclude
+./lib/claude-to-codex.sh --target ../my-project --dry-run
+./lib/claude-to-codex.sh --target ../my-project --git-exclude
+./lib/sync-claude.sh --target ../my-project --dry-run
 ```
 
-It defaults to this repository as the source and its parent workspace as the
-target. Use `--source DIR` to supply a different source tree. The helper defaults
-to no Git exclude updates; `sync.sh` forwards its selected exclude policy.
+Both helpers default to this repository above `lib/` as the source and its parent
+workspace as the target. Use `--source DIR` to supply a different source tree.
+The helpers default to no Git exclude updates; `sync.sh` forwards its policy.
+
+`lib/destinations.sh` and `lib/git-exclude.sh` define functions only. The entry
+point selects destinations once, then calls the sync helpers for each selection.
 
 ## Overrides and cleanup
 
@@ -136,9 +157,14 @@ there is no transaction across all projects if a later target fails.
 
 ## Verification
 
+Tests require Bash, Git, and standard macOS/Linux command-line tools; ripgrep
+is not required.
+
 ```bash
 bash tests/claude-to-codex.sh
-bash -n sync.sh claude-to-codex.sh tests/claude-to-codex.sh
+for script in sync.sh lib/*.sh tests/claude-to-codex.sh; do
+  bash -n "$script" || exit 1
+done
 ```
 
 Tests cover UTF-8, conversion, dry runs, reruns, overrides, legacy migration,
